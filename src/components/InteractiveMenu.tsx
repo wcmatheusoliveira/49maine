@@ -165,7 +165,7 @@ export default function InteractiveMenu() {
                 color={selectedFilter === key ? color as any : "default"}
                 variant={selectedFilter === key ? "solid" : "bordered"}
                 startContent={icon}
-                onPress={() => setSelectedFilter(selectedFilter === key ? null : key)}
+                onClick={() => setSelectedFilter(selectedFilter === key ? null : key)}
                 className="cursor-pointer capitalize"
               >
                 {key}
@@ -214,9 +214,9 @@ export default function InteractiveMenu() {
                                     <Chip
                                       key={tag}
                                       size="sm"
-                                      color={dietaryTags[tag]?.color as any}
+                                      color={(dietaryTags as any)[tag]?.color as any}
                                       variant="flat"
-                                      startContent={dietaryTags[tag]?.icon}
+                                      startContent={(dietaryTags as any)[tag]?.icon}
                                     >
                                       {tag}
                                     </Chip>

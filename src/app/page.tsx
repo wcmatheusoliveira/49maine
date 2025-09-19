@@ -73,19 +73,19 @@ export default function Home() {
         <div className="mx-auto">
           {/* Simple Header */}
           <header
-            className="flex items-center justify-between mb-8 pb-4 border-b"
+            className="sticky top-0 z-50 bg-[#FBF8EB] flex items-center justify-between px-4 py-2 sm:static sm:px-0 sm:mb-8 sm:pb-4 sm:border-b"
             style={{ borderColor: "rgba(20, 70, 99, 0.2)" }}
           >
-            <div className="flex items-center gap-3">
-              <img src="./logo.svg" alt="49Maine" className="size-24" />
-              {/* <p
-                className="font-headline font-bold text-2xl"
-                style={{ color: "#144663" }}
-              >
-                49MAINE
-              </p> */}
+            {/* Logo */}
+            <div className="flex items-center">
+              <img
+                src="./logo.svg"
+                alt="49Maine"
+                className="h-12 w-12 sm:h-24 sm:w-24"
+              />
             </div>
 
+            {/* Desktop Navigation */}
             <nav className="hidden sm:flex items-center gap-8">
               {navItems.map((item) => (
                 <ScrollLink
@@ -103,6 +103,7 @@ export default function Home() {
               ))}
             </nav>
 
+            {/* Desktop Call Button */}
             <button
               className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all hover:shadow-md"
               style={{ backgroundColor: "#144663", color: "white" }}
@@ -112,9 +113,9 @@ export default function Home() {
               Call Now
             </button>
 
-            {/* Mobile Menu Button */}
+            {/* Mobile Menu Button - Simplified */}
             <button
-              className="sm:hidden p-2"
+              className="sm:hidden p-2 -mr-2"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               style={{ color: "#144663" }}
             >
@@ -123,19 +124,18 @@ export default function Home() {
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
+                strokeWidth={2}
               >
                 {isMenuOpen ? (
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    strokeWidth={2}
                     d="M6 18L18 6M6 6l12 12"
                   />
                 ) : (
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    strokeWidth={2}
                     d="M4 6h16M4 12h16M4 18h16"
                   />
                 )}
@@ -143,38 +143,69 @@ export default function Home() {
             </button>
           </header>
 
-          {/* Mobile Menu */}
+          {/* Mobile Menu - Full Screen Overlay */}
           {isMenuOpen && (
-            <div
-              className="sm:hidden mb-8 pb-4 border-b"
-              style={{ borderColor: "rgba(20, 70, 99, 0.2)" }}
+            <motion.div
+              initial={{ opacity: 0, x: "100%" }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: "100%" }}
+              transition={{ type: "tween", duration: 0.3 }}
+              className="fixed inset-0 z-40 bg-[#FBF8EB] sm:hidden"
+              style={{ top: "64px" }}
             >
-              <nav className="flex flex-col gap-4">
-                {navItems.map((item) => (
-                  <ScrollLink
-                    key={item.name}
-                    to={item.to}
-                    spy={true}
-                    smooth={true}
-                    offset={-70}
-                    duration={500}
-                    className="text-lg cursor-pointer"
-                    style={{ color: "#144663" }}
-                    onClick={() => setIsMenuOpen(false)}
+              <div className="flex flex-col h-full px-6 py-8">
+                <nav className="flex-1 flex flex-col gap-8">
+                  {navItems.map((item, index) => (
+                    <motion.div
+                      key={item.name}
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                    >
+                      <ScrollLink
+                        to={item.to}
+                        spy={true}
+                        smooth={true}
+                        offset={-70}
+                        duration={500}
+                        className="text-3xl font-headline cursor-pointer block"
+                        style={{ color: "#144663" }}
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        {item.name}
+                      </ScrollLink>
+                    </motion.div>
+                  ))}
+                </nav>
+
+                {/* Mobile Menu Footer */}
+                <div className="border-t pt-6" style={{ borderColor: "rgba(20, 70, 99, 0.2)" }}>
+                  <button
+                    className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-full font-bold text-lg transition-all"
+                    style={{ backgroundColor: "#144663", color: "white" }}
+                    onClick={() => (window.location.href = "tel:2075550149")}
                   >
-                    {item.name}
-                  </ScrollLink>
-                ))}
-                <button
-                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all"
-                  style={{ backgroundColor: "#144663", color: "white" }}
-                  onClick={() => (window.location.href = "tel:2075550149")}
-                >
-                  <Phone className="w-4 h-4" />
-                  Call Now
-                </button>
-              </nav>
-            </div>
+                    <Phone className="w-5 h-5" />
+                    Reserve a Table
+                  </button>
+
+                  <div className="mt-6 text-center">
+                    <p className="text-sm font-headline" style={{ color: "#144663", opacity: 0.7 }}>
+                      Open Now • Closes at 10PM
+                    </p>
+                    <div className="flex justify-center gap-4 mt-4">
+                      <a href="#" className="text-sm font-headline" style={{ color: "#144663", opacity: 0.7 }}>
+                        Instagram
+                      </a>
+                      <span style={{ color: "#144663", opacity: 0.3 }}>•</span>
+                      <a href="#" className="text-sm font-headline" style={{ color: "#144663", opacity: 0.7 }}>
+                        Facebook
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
           )}
 
           {/* Main Content */}

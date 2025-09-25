@@ -1,0 +1,193 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Site configuration
+model Site {
+  id            String   @id @default(cuid())
+  name          String
+  logo          String?
+  favicon       String?
+  primaryColor  String   @default("#144663")
+  secondaryColor String  @default("#FBF8EB")
+  accentColor   String   @default("#fbbf24")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Pages
+model Page {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  title       String
+  description String?
+  isPublished Boolean   @default(false)
+  isHomepage  Boolean   @default(false)
+  sections    Section[]
+  seoTitle    String?
+  seoDescription String?
+  seoImage    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// Page sections
+model Section {
+  id          String      @id @default(cuid())
+  type        String      // hero, menu, location, about, testimonials, etc.
+  name        String
+  order       Int
+  isVisible   Boolean     @default(true)
+  data        String      // JSON data for section content
+  components  Component[]
+  page        Page        @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  pageId      String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([pageId, order])
+}
+
+// Reusable components
+model Component {
+  id          String   @id @default(cuid())
+  type        String   // button, text, image, card, etc.
+  name        String
+  order       Int
+  data        String   // JSON data for component content
+  section     Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  sectionId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([sectionId, order])
+}
+
+// Menu categories
+model MenuCategory {
+  id          String      @id @default(cuid())
+  name        String
+  description String?
+  order       Int
+  isActive    Boolean     @default(true)
+  items       MenuItem[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([order])
+}
+
+// Menu items
+model MenuItem {
+  id          String       @id @default(cuid())
+  name        String
+  description String?
+  price       String?      // Can be complex pricing like "Small $10 | Large $15"
+  priceOptions String?     // JSON for complex pricing structures
+  image       String?
+  isPopular   Boolean      @default(false)
+  isAvailable Boolean      @default(true)
+  order       Int
+  category    MenuCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  categoryId  String
+  allergens   String?      // JSON array of allergens
+  nutrition   String?      // JSON object with nutritional info
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([categoryId, order])
+}
+
+// Business information
+model BusinessInfo {
+  id          String   @id @default(cuid())
+  name        String
+  address     String
+  city        String
+  state       String
+  zip         String
+  phone       String
+  email       String
+  hours       String   // JSON object with hours for each day
+  socialMedia String?  // JSON object with social media links
+  mapEmbed    String?  // Google Maps embed code
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Special offers and announcements
+model SpecialOffer {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  icon        String?
+  startDate   DateTime?
+  endDate     DateTime?
+  isActive    Boolean  @default(true)
+  order       Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive, order])
+}
+
+// Testimonials
+model Testimonial {
+  id          String   @id @default(cuid())
+  name        String
+  rating      Int
+  text        String
+  date        String?
+  isPublished Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isPublished, order])
+}
+
+// Media library
+model Media {
+  id          String   @id @default(cuid())
+  filename    String
+  url         String
+  type        String   // image, video, document
+  alt         String?
+  width       Int?
+  height      Int?
+  size        Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Admin users (simple auth for now)
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String   // hashed
+  role      String   @default("admin")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Navigation items
+model Navigation {
+  id        String   @id @default(cuid())
+  label     String
+  url       String
+  order     Int
+  isExternal Boolean @default(false)
+  isVisible Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([order])
+}

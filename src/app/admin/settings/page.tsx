@@ -23,6 +23,8 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [restoring, setRestoring] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [settings, setSettings] = useState<SiteSettings>({
     id: '',
     name: '49Maine',
@@ -163,6 +165,49 @@ export default function SettingsPage() {
     } finally {
       setRestoring(false);
       event.target.value = ''; // Reset file input
+    }
+  };
+
+  const handlePasswordUpdate = async () => {
+    if (!newPassword || !confirmPassword) {
+      toast.error('Please fill in both password fields');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      toast.error('Password must be at least 8 characters');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+
+    const toastId = toast.loading('Updating password...');
+
+    try {
+      const response = await fetch('/api/admin/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          newPassword,
+          confirmPassword
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success('Password updated successfully', { id: toastId });
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        throw new Error(data.error || 'Failed to update password');
+      }
+    } catch (error: any) {
+      console.error('Password update error:', error);
+      toast.error(error.message || 'Failed to update password', { id: toastId });
     }
   };
 
@@ -360,7 +405,9 @@ export default function SettingsPage() {
                 <Input
                   id="admin-password"
                   type="password"
-                  placeholder="Enter new password"
+                  placeholder="Enter new password (min 8 characters)"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
                 />
               </div>
 
@@ -370,6 +417,8 @@ export default function SettingsPage() {
                   id="confirm-password"
                   type="password"
                   placeholder="Confirm new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
                 />
               </div>
 
@@ -392,13 +441,8 @@ export default function SettingsPage() {
                   variant="default"
                   className="bg-[#144663] hover:bg-[#0d3346]"
                   style={{ backgroundColor: settings.primaryColor }}
-                  onClick={() => {
-                    const toastId = toast.loading('Updating password...');
-                    // TODO: Implement password update
-                    setTimeout(() => {
-                      toast.success('Password updated successfully', { id: toastId });
-                    }, 1000);
-                  }}
+                  onClick={handlePasswordUpdate}
+                  disabled={!newPassword || !confirmPassword}
                 >
                   Update Password
                 </Button>

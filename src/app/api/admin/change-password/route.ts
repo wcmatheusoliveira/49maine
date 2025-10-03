@@ -18,6 +18,14 @@ export async function POST(request: NextRequest) {
     return authResult.response
   }
 
+  const userEmail = authResult.session?.user?.email
+  if (!userEmail) {
+    return NextResponse.json(
+      { error: 'User email not found in session' },
+      { status: 400 }
+    )
+  }
+
   try {
     const body = await request.json()
     const validatedData = passwordSchema.parse(body)
@@ -27,7 +35,7 @@ export async function POST(request: NextRequest) {
 
     // Update the user's password
     await prisma.user.update({
-      where: { email: authResult.session.user.email! },
+      where: { email: userEmail },
       data: { password: hashedPassword }
     })
 

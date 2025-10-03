@@ -16,6 +16,7 @@ export async function GET() {
         primaryColor: '#144663',
         secondaryColor: '#FBF8EB',
         accentColor: '#fbbf24',
+        gaMeasurementId: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       }
@@ -31,6 +32,7 @@ export async function GET() {
         primaryColor: '#144663',
         secondaryColor: '#FBF8EB',
         accentColor: '#fbbf24',
+        gaMeasurementId: null,
       },
       { status: 200 }
     )

@@ -690,7 +690,9 @@ export default function HomePage({ menuCategories, businessInfo }: HomePageProps
                             </a>
                             {Object.keys(socialMedia).length > 0 && (
                               <div className="flex gap-4 mt-6">
-                                {Object.entries(socialMedia).map(([platform, url]) => url && (
+                                {Object.entries(socialMedia)
+                                  .filter(([, url]) => url)
+                                  .map(([platform, url]) => (
                                   <a
                                     key={platform}
                                     href={url as string}

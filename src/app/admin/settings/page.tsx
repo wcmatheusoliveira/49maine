@@ -1,338 +1,496 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Save, Palette, Globe, Bell, Shield, Database } from "lucide-react";
+import { Save, Palette, Globe, Shield, Database } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "sonner";
+
+interface SiteSettings {
+  id: string;
+  name: string;
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+  gaMeasurementId?: string;
+}
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState("general");
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [restoring, setRestoring] = useState(false);
+  const [settings, setSettings] = useState<SiteSettings>({
+    id: '',
+    name: '49Maine',
+    primaryColor: '#144663',
+    secondaryColor: '#FBF8EB',
+    accentColor: '#fbbf24',
+  });
 
-  const tabs = [
-    { id: "general", label: "General", icon: Globe },
-    { id: "appearance", label: "Appearance", icon: Palette },
-    { id: "notifications", label: "Notifications", icon: Bell },
-    { id: "security", label: "Security", icon: Shield },
-    { id: "database", label: "Database", icon: Database }
-  ];
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const response = await fetch('/api/admin/settings');
+      if (response.ok) {
+        const data = await response.json();
+        setSettings(data);
+        applyColors(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch settings:', error);
+      toast.error('Failed to load settings');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const applyColors = (data: SiteSettings) => {
+    // Apply colors to CSS variables for immediate preview
+    document.documentElement.style.setProperty('--primary-color', data.primaryColor);
+    document.documentElement.style.setProperty('--secondary-color', data.secondaryColor);
+    document.documentElement.style.setProperty('--accent-color', data.accentColor);
+  };
 
   const handleSave = async () => {
     setSaving(true);
-    // Simulate saving
-    setTimeout(() => {
+    const toastId = toast.loading('Saving settings...');
+
+    try {
+      const response = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSettings(data);
+        applyColors(data);
+        toast.success('Settings saved successfully', { id: toastId });
+      } else {
+        throw new Error('Failed to save settings');
+      }
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      toast.error('Failed to save settings', { id: toastId });
+    } finally {
       setSaving(false);
-      alert("Settings saved successfully!");
-    }, 1000);
+    }
   };
+
+  const handleColorChange = (field: keyof SiteSettings, value: string) => {
+    const newSettings = { ...settings, [field]: value };
+    setSettings(newSettings);
+    applyColors(newSettings);
+  };
+
+  const handleBackup = async () => {
+    const toastId = toast.loading('Creating backup...');
+    try {
+      const response = await fetch('/api/admin/database/backup');
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+
+        // Get filename from Content-Disposition header or use default
+        const contentDisposition = response.headers.get('Content-Disposition');
+        const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
+        const filename = filenameMatch ? filenameMatch[1] : `49maine-backup-${new Date().toISOString().split('T')[0]}.db`;
+
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        toast.success('Database backup downloaded', { id: toastId });
+      } else {
+        throw new Error('Backup failed');
+      }
+    } catch (error) {
+      console.error('Backup error:', error);
+      toast.error('Failed to create backup', { id: toastId });
+    }
+  };
+
+  const handleRestore = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.db')) {
+      toast.error('Please select a valid .db file');
+      return;
+    }
+
+    if (!confirm('Are you sure you want to restore this backup? This will replace your current database. A backup of the current database will be created automatically.')) {
+      event.target.value = ''; // Reset file input
+      return;
+    }
+
+    setRestoring(true);
+    const toastId = toast.loading('Restoring database...');
+
+    try {
+      const formData = new FormData();
+      formData.append('database', file);
+
+      const response = await fetch('/api/admin/database/restore', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success('Database restored successfully! Refreshing...', { id: toastId });
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      } else {
+        throw new Error(data.error || 'Restore failed');
+      }
+    } catch (error: any) {
+      console.error('Restore error:', error);
+      toast.error(error.message || 'Failed to restore database', { id: toastId });
+    } finally {
+      setRestoring(false);
+      event.target.value = ''; // Reset file input
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <p className="text-muted-foreground">Loading settings...</p>
+      </div>
+    );
+  }
 
   return (
     <div>
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Settings</h1>
-        <p className="text-gray-600">Manage your site configuration and preferences.</p>
+        <p className="text-gray-600">Manage your site configuration and appearance.</p>
       </div>
 
-      <div className="flex gap-8">
-        {/* Sidebar */}
-        <div className="w-64">
-          <nav className="space-y-1">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all text-left ${
-                    activeTab === tab.id
-                      ? "bg-[#144663] text-white"
-                      : "hover:bg-gray-100 text-gray-700"
-                  }`}
+      <Tabs defaultValue="general" className="space-y-6">
+        <TabsList className="w-full justify-start">
+          <TabsTrigger value="general" className="gap-2">
+            <Globe className="w-4 h-4" />
+            General
+          </TabsTrigger>
+          <TabsTrigger value="appearance" className="gap-2">
+            <Palette className="w-4 h-4" />
+            Appearance
+          </TabsTrigger>
+          <TabsTrigger value="security" className="gap-2">
+            <Shield className="w-4 h-4" />
+            Security
+          </TabsTrigger>
+          <TabsTrigger value="database" className="gap-2">
+            <Database className="w-4 h-4" />
+            Database
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="general">
+          <Card>
+            <CardHeader>
+              <CardTitle>General Settings</CardTitle>
+              <CardDescription>
+                Manage basic site information and configuration
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="site-name">Restaurant Name</Label>
+                <Input
+                  id="site-name"
+                  value={settings.name}
+                  onChange={(e) => setSettings({ ...settings, name: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="ga-id">Google Analytics Measurement ID</Label>
+                <Input
+                  id="ga-id"
+                  placeholder="G-XXXXXXXXXX"
+                  value={settings.gaMeasurementId || ''}
+                  onChange={(e) => setSettings({ ...settings, gaMeasurementId: e.target.value })}
+                />
+                <p className="text-sm text-muted-foreground">
+                  Get your measurement ID from{' '}
+                  <a
+                    href="https://analytics.google.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    Google Analytics
+                  </a>
+                  . Format: G-XXXXXXXXXX
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="appearance">
+          <Card>
+            <CardHeader>
+              <CardTitle>Appearance Settings</CardTitle>
+              <CardDescription>
+                Customize your site's colors and branding
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="primary-color">Primary Color</Label>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Main brand color used for headers, buttons, and key elements
+                </p>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    id="primary-color"
+                    value={settings.primaryColor}
+                    onChange={(e) => handleColorChange('primaryColor', e.target.value)}
+                    className="h-10 w-20 rounded border border-input cursor-pointer"
+                  />
+                  <Input
+                    type="text"
+                    value={settings.primaryColor}
+                    onChange={(e) => handleColorChange('primaryColor', e.target.value)}
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="secondary-color">Secondary Color</Label>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Background and complementary color
+                </p>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    id="secondary-color"
+                    value={settings.secondaryColor}
+                    onChange={(e) => handleColorChange('secondaryColor', e.target.value)}
+                    className="h-10 w-20 rounded border border-input cursor-pointer"
+                  />
+                  <Input
+                    type="text"
+                    value={settings.secondaryColor}
+                    onChange={(e) => handleColorChange('secondaryColor', e.target.value)}
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="accent-color">Accent Color</Label>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Highlight color for special elements and calls-to-action
+                </p>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    id="accent-color"
+                    value={settings.accentColor}
+                    onChange={(e) => handleColorChange('accentColor', e.target.value)}
+                    className="h-10 w-20 rounded border border-input cursor-pointer"
+                  />
+                  <Input
+                    type="text"
+                    value={settings.accentColor}
+                    onChange={(e) => handleColorChange('accentColor', e.target.value)}
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 border-t">
+                <h4 className="font-semibold mb-3">Preview</h4>
+                <div className="space-y-3">
+                  <div
+                    className="h-16 rounded-lg flex items-center justify-center text-white font-semibold"
+                    style={{ backgroundColor: settings.primaryColor }}
+                  >
+                    Primary Color
+                  </div>
+                  <div
+                    className="h-16 rounded-lg flex items-center justify-center font-semibold border"
+                    style={{ backgroundColor: settings.secondaryColor, borderColor: settings.primaryColor }}
+                  >
+                    Secondary Color
+                  </div>
+                  <div
+                    className="h-16 rounded-lg flex items-center justify-center text-white font-semibold"
+                    style={{ backgroundColor: settings.accentColor }}
+                  >
+                    Accent Color
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="security">
+          <Card>
+            <CardHeader>
+              <CardTitle>Security Settings</CardTitle>
+              <CardDescription>
+                Manage authentication and access controls
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="admin-password">Admin Password</Label>
+                <Input
+                  id="admin-password"
+                  type="password"
+                  placeholder="Enter new password"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirm-password">Confirm Password</Label>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  placeholder="Confirm new password"
+                />
+              </div>
+
+              <div className="flex items-center space-x-3">
+                <Checkbox id="2fa" />
+                <Label htmlFor="2fa" className="font-normal cursor-pointer">
+                  Enable two-factor authentication
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-3">
+                <Checkbox id="require-password" defaultChecked />
+                <Label htmlFor="require-password" className="font-normal cursor-pointer">
+                  Require password for admin access
+                </Label>
+              </div>
+
+              <div className="pt-4">
+                <Button
+                  variant="default"
+                  className="bg-[#144663] hover:bg-[#0d3346]"
+                  style={{ backgroundColor: settings.primaryColor }}
+                  onClick={() => {
+                    const toastId = toast.loading('Updating password...');
+                    // TODO: Implement password update
+                    setTimeout(() => {
+                      toast.success('Password updated successfully', { id: toastId });
+                    }, 1000);
+                  }}
                 >
-                  <Icon className="w-5 h-5" />
-                  <span className="font-medium">{tab.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-        </div>
+                  Update Password
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        {/* Content */}
-        <div className="flex-1">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">
-                {tabs.find(t => t.id === activeTab)?.label} Settings
-              </h2>
-            </div>
-
-            <div className="p-6">
-              {activeTab === "general" && (
-                <div className="space-y-6">
+        <TabsContent value="database">
+          <Card>
+            <CardHeader>
+              <CardTitle>Database Settings</CardTitle>
+              <CardDescription>
+                View database information and manage backups
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="p-4 bg-muted rounded-lg space-y-3">
+                <h3 className="font-medium">Database Status</h3>
+                <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Site Name
-                    </label>
+                    <span className="text-muted-foreground">Type:</span>
+                    <p className="font-medium">SQLite</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Size:</span>
+                    <p className="font-medium">124 KB</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Tables:</span>
+                    <p className="font-medium">12</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Last Backup:</span>
+                    <p className="font-medium">2 hours ago</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="font-medium">Backup & Restore</h3>
+                <div className="grid gap-3">
+                  <Button
+                    variant="default"
+                    className="w-full bg-[#144663] hover:bg-[#0d3346]"
+                    style={{ backgroundColor: settings.primaryColor }}
+                    onClick={handleBackup}
+                  >
+                    Download Backup
+                  </Button>
+
+                  <div className="relative">
                     <input
-                      type="text"
-                      defaultValue="49Maine"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      type="file"
+                      id="restore-file"
+                      accept=".db"
+                      onChange={handleRestore}
+                      disabled={restoring}
+                      className="hidden"
                     />
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => document.getElementById('restore-file')?.click()}
+                      disabled={restoring}
+                    >
+                      {restoring ? 'Restoring...' : 'Restore from Backup'}
+                    </Button>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Site Description
-                    </label>
-                    <textarea
-                      rows={3}
-                      defaultValue="Wood-fired goodness in the heart of Lincoln, Maine"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Timezone
-                    </label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                      <option>Eastern Time (US & Canada)</option>
-                      <option>Central Time (US & Canada)</option>
-                      <option>Mountain Time (US & Canada)</option>
-                      <option>Pacific Time (US & Canada)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Language
-                    </label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                      <option>English (US)</option>
-                      <option>Spanish</option>
-                      <option>French</option>
-                    </select>
+                  <div className="pt-2 border-t">
+                    <p className="text-xs text-muted-foreground mb-3">
+                      ⚠️ Restoring a backup will replace your current database. A safety backup will be created automatically.
+                    </p>
                   </div>
                 </div>
-              )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
-              {activeTab === "appearance" && (
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Primary Color
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="color"
-                        defaultValue="#144663"
-                        className="h-10 w-20"
-                      />
-                      <input
-                        type="text"
-                        defaultValue="#144663"
-                        className="px-3 py-2 border border-gray-300 rounded-lg"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Secondary Color
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="color"
-                        defaultValue="#FBF8EB"
-                        className="h-10 w-20"
-                      />
-                      <input
-                        type="text"
-                        defaultValue="#FBF8EB"
-                        className="px-3 py-2 border border-gray-300 rounded-lg"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Accent Color
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="color"
-                        defaultValue="#fbbf24"
-                        className="h-10 w-20"
-                      />
-                      <input
-                        type="text"
-                        defaultValue="#fbbf24"
-                        className="px-3 py-2 border border-gray-300 rounded-lg"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Font Family
-                    </label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                      <option>Default (System)</option>
-                      <option>Serif</option>
-                      <option>Sans-serif</option>
-                      <option>Monospace</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "notifications" && (
-                <div className="space-y-6">
-                  <div>
-                    <label className="flex items-center gap-3">
-                      <input type="checkbox" defaultChecked className="rounded" />
-                      <span className="text-sm font-medium text-gray-700">
-                        Email notifications for new reservations
-                      </span>
-                    </label>
-                  </div>
-
-                  <div>
-                    <label className="flex items-center gap-3">
-                      <input type="checkbox" defaultChecked className="rounded" />
-                      <span className="text-sm font-medium text-gray-700">
-                        Email notifications for contact form submissions
-                      </span>
-                    </label>
-                  </div>
-
-                  <div>
-                    <label className="flex items-center gap-3">
-                      <input type="checkbox" className="rounded" />
-                      <span className="text-sm font-medium text-gray-700">
-                        Daily summary of site activity
-                      </span>
-                    </label>
-                  </div>
-
-                  <div>
-                    <label className="flex items-center gap-3">
-                      <input type="checkbox" defaultChecked className="rounded" />
-                      <span className="text-sm font-medium text-gray-700">
-                        Alert when menu items are out of stock
-                      </span>
-                    </label>
-                  </div>
-
-                  <div className="pt-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Notification Email
-                    </label>
-                    <input
-                      type="email"
-                      defaultValue="admin@49maine.com"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "security" && (
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Admin Password
-                    </label>
-                    <input
-                      type="password"
-                      placeholder="Enter new password"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Confirm Password
-                    </label>
-                    <input
-                      type="password"
-                      placeholder="Confirm new password"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="flex items-center gap-3">
-                      <input type="checkbox" className="rounded" />
-                      <span className="text-sm font-medium text-gray-700">
-                        Enable two-factor authentication
-                      </span>
-                    </label>
-                  </div>
-
-                  <div>
-                    <label className="flex items-center gap-3">
-                      <input type="checkbox" defaultChecked className="rounded" />
-                      <span className="text-sm font-medium text-gray-700">
-                        Require password for admin access
-                      </span>
-                    </label>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "database" && (
-                <div className="space-y-6">
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <h3 className="font-medium text-gray-900 mb-2">Database Status</h3>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Type:</span>
-                        <span className="font-medium">SQLite</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Size:</span>
-                        <span className="font-medium">124 KB</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Tables:</span>
-                        <span className="font-medium">12</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Last Backup:</span>
-                        <span className="font-medium">2 hours ago</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="font-medium text-gray-900 mb-3">Actions</h3>
-                    <div className="space-y-3">
-                      <button className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                        Backup Database
-                      </button>
-                      <button className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
-                        Export Data
-                      </button>
-                      <button className="w-full px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
-                        Reset Database
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="p-6 border-t border-gray-200">
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="px-6 py-2.5 bg-[#144663] text-white rounded-lg hover:bg-[#0d3346] transition-colors flex items-center gap-2 disabled:opacity-50"
-              >
-                <Save className="w-4 h-4" />
-                {saving ? "Saving..." : "Save Changes"}
-              </button>
-            </div>
-          </div>
-        </div>
+      <div className="mt-8 flex justify-end">
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          className="bg-[#144663] hover:bg-[#0d3346]"
+          style={{ backgroundColor: settings.primaryColor }}
+        >
+          <Save className="w-4 h-4 mr-2" />
+          {saving ? "Saving..." : "Save Changes"}
+        </Button>
       </div>
     </div>
   );

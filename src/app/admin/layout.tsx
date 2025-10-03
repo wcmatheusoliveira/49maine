@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
 import {
-  Menu,
   Home,
   FileText,
   UtensilsCrossed,
@@ -12,21 +12,47 @@ import {
   Settings,
   Image,
   MessageSquare,
-  ChevronRight,
-  X
+  LogOut,
+  ChevronsUpDown,
+  Globe
 } from "lucide-react";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import { Toaster } from "@/components/ui/sonner";
+import ColorApplier from "@/components/ColorApplier";
+import { toast } from "sonner";
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+function AppSidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
 
   const navItems = [
     { href: "/admin", label: "Dashboard", icon: Home },
     { href: "/admin/pages", label: "Pages", icon: FileText },
-    { href: "/admin/menu", label: "Menu Management", icon: UtensilsCrossed },
+    { href: "/admin/menu", label: "Menu", icon: UtensilsCrossed },
     { href: "/admin/business", label: "Business Info", icon: MapPin },
     { href: "/admin/testimonials", label: "Testimonials", icon: MessageSquare },
-    { href: "/admin/media", label: "Media Library", icon: Image },
+    { href: "/admin/media", label: "Media", icon: Image },
     { href: "/admin/settings", label: "Settings", icon: Settings },
   ];
 
@@ -38,81 +64,162 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Mobile Menu Button */}
-      <button
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-md"
-      >
-        {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-      </button>
-
-      {/* Sidebar */}
-      <aside
-        className={`${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0 fixed left-0 top-0 h-full w-64 bg-white shadow-lg transition-transform duration-300 z-40`}
-      >
-        <div className="p-6">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 bg-[#144663] rounded-lg flex items-center justify-center text-white font-bold">
-              49
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-[#144663]">49Maine Admin</h1>
-              <p className="text-xs text-gray-500">Content Management</p>
-            </div>
-          </div>
-
-          <nav className="space-y-2">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const active = isActive(item.href);
-
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
-                    active
-                      ? "bg-[#144663] text-white"
-                      : "hover:bg-gray-100 text-gray-700"
-                  }`}
-                  onClick={() => setSidebarOpen(false)}
+    <Sidebar>
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" asChild>
+              <Link href="/admin">
+                <div
+                  className="flex aspect-square size-8 items-center justify-center rounded-lg text-sidebar-primary-foreground"
+                  style={{ backgroundColor: 'var(--primary-color, #144663)' }}
                 >
-                  <Icon className="w-5 h-5" />
-                  <span className="font-medium">{item.label}</span>
-                  {active && <ChevronRight className="w-4 h-4 ml-auto" />}
-                </Link>
-              );
-            })}
-          </nav>
+                  <span className="text-lg font-bold">49</span>
+                </div>
+                <div className="flex flex-col gap-0.5 leading-none">
+                  <span className="font-semibold">49Maine</span>
+                  <span className="text-xs">Admin Dashboard</span>
+                </div>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
 
-          <div className="absolute bottom-6 left-6 right-6">
-            <Link
-              href="/"
-              className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <span className="text-sm">View Site</span>
-            </Link>
-          </div>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const active = isActive(item.href);
+                return (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={active}
+                      className={active ? "bg-[var(--primary-color)] text-white hover:bg-[var(--primary-color)] hover:text-white" : ""}
+                    >
+                      <Link href={item.href}>
+                        <Icon />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton
+                  size="lg"
+                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                >
+                  <Avatar className="h-8 w-8 rounded-lg">
+                    <AvatarFallback className="rounded-lg">
+                      {session?.user?.email?.charAt(0).toUpperCase() || 'A'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="grid flex-1 text-left text-sm leading-tight">
+                    <span className="truncate font-semibold">{session?.user?.email || 'Admin'}</span>
+                    <span className="truncate text-xs">Administrator</span>
+                  </div>
+                  <ChevronsUpDown className="ml-auto size-4" />
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+                side="bottom"
+                align="end"
+                sideOffset={4}
+              >
+                <DropdownMenuItem asChild>
+                  <Link href="/" className="cursor-pointer">
+                    <Globe className="mr-2 h-4 w-4" />
+                    View Site
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={async () => {
+                    const toastId = toast.loading("Signing out...");
+                    await signOut({ callbackUrl: "/admin/login" });
+                    toast.success("Signed out successfully", { id: toastId });
+                  }}
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </Sidebar>
+  );
+}
+
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { status } = useSession();
+
+  // Check if on login page
+  const isLoginPage = pathname.startsWith('/admin/login');
+
+  // Redirect to login if not authenticated (must call all hooks before conditional returns)
+  useEffect(() => {
+    if (status === 'unauthenticated' && !isLoginPage) {
+      console.log('Not authenticated - redirecting to login');
+      router.push(`/admin/login?callbackUrl=${encodeURIComponent(pathname)}`);
+    }
+  }, [status, pathname, router, isLoginPage]);
+
+  // If on login page, skip auth checks and just render children
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
+
+  // Show loading state while checking authentication
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-gray-200 border-t-primary rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
         </div>
-      </aside>
+      </div>
+    );
+  }
 
-      {/* Main Content */}
-      <main className={`lg:ml-64 min-h-screen transition-all duration-300`}>
-        <div className="p-4 lg:p-8">
+  // Don't render admin layout if not authenticated
+  if (status === 'unauthenticated') {
+    return null;
+  }
+
+  return (
+    <SidebarProvider>
+      <AppSidebar />
+      <main className="flex-1 w-full">
+        <div className="flex h-16 items-center gap-4 border-b px-6">
+          <SidebarTrigger />
+          <Separator orientation="vertical" className="h-6" />
+          <h2 className="text-lg font-semibold">49Maine Restaurant Admin</h2>
+        </div>
+        <div className="p-6">
           {children}
         </div>
       </main>
-
-      {/* Mobile Overlay */}
-      {sidebarOpen && (
-        <div
-          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-    </div>
+      <ColorApplier />
+      <Toaster />
+    </SidebarProvider>
   );
 }

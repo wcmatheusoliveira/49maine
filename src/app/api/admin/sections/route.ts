@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { checkAuth } from '@/lib/auth-check';
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
@@ -13,6 +14,11 @@ const sectionSchema = z.object({
 
 // GET sections for a page
 export async function GET(request: NextRequest) {
+  const authResult = await checkAuth();
+  if (!authResult.authenticated) {
+    return authResult.response;
+  }
+
   try {
     const { searchParams } = new URL(request.url)
     const pageId = searchParams.get('pageId')
@@ -45,6 +51,11 @@ export async function GET(request: NextRequest) {
 
 // POST create new section
 export async function POST(request: NextRequest) {
+  const authResult = await checkAuth();
+  if (!authResult.authenticated) {
+    return authResult.response;
+  }
+
   try {
     const body = await request.json()
     const validatedData = sectionSchema.parse(body)
@@ -73,6 +84,11 @@ export async function POST(request: NextRequest) {
 
 // PUT update section
 export async function PUT(request: NextRequest) {
+  const authResult = await checkAuth();
+  if (!authResult.authenticated) {
+    return authResult.response;
+  }
+
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
@@ -112,6 +128,11 @@ export async function PUT(request: NextRequest) {
 
 // DELETE section
 export async function DELETE(request: NextRequest) {
+  const authResult = await checkAuth();
+  if (!authResult.authenticated) {
+    return authResult.response;
+  }
+
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
@@ -138,6 +159,11 @@ export async function DELETE(request: NextRequest) {
 
 // PATCH update section order
 export async function PATCH(request: NextRequest) {
+  const authResult = await checkAuth();
+  if (!authResult.authenticated) {
+    return authResult.response;
+  }
+
   try {
     const body = await request.json()
     const { sections } = body as { sections: { id: string; order: number }[] }

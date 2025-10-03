@@ -116,7 +116,7 @@ export default function DynamicSection({ section, menuCategories, businessInfo }
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="rounded-4xl overflow-hidden relative z-20 mt-8 isolate"
+          className="rounded-4xl overflow-hidden relative z-20 isolate"
           style={{ backgroundColor: data.backgroundColor || "#144663", minHeight: "450px" }}
         >
           <div className="flex items-center justify-center h-full min-h-[450px] text-center text-white p-8">

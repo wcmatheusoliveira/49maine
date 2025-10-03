@@ -30,17 +30,25 @@ interface DynamicMenuProps {
 export default function DynamicMenu({ categories, title = "The Good Stuff", subtitle = "Wood-fired, fresh-made, and always worth it" }: DynamicMenuProps) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  const parsePriceOptions = (priceOptions: string | undefined) => {
+  const parsePriceOptions = (priceOptions: string | undefined): Array<{name: string, price: string}> | null => {
     if (!priceOptions) return null;
     try {
-      return JSON.parse(priceOptions);
+      const parsed = JSON.parse(priceOptions);
+      // Handle both array format [{name, price}] and object format {small: "$10", large: "$15"}
+      if (Array.isArray(parsed)) {
+        return parsed;
+      } else if (typeof parsed === 'object') {
+        // Convert object to array format
+        return Object.entries(parsed).map(([name, price]) => ({ name, price: price as string }));
+      }
+      return null;
     } catch {
       return null;
     }
   };
 
   return (
-    <div className="my-20">
+    <div id="menu" className="my-20">
       <div className="text-center mb-12">
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
@@ -184,33 +192,32 @@ export default function DynamicMenu({ categories, title = "The Good Stuff", subt
                               Guest favorite
                             </p>
                           )}
-                          {item.price && (
+                          {priceOptions && priceOptions.length > 0 ? (
+                            <div className="text-right">
+                              {priceOptions.map((variant, idx) => (
+                                <p
+                                  key={idx}
+                                  className="whitespace-nowrap"
+                                  style={{ color: "#144663" }}
+                                >
+                                  <span className="font-headline text-sm" style={{ opacity: 0.7 }}>
+                                    {variant.name}
+                                  </span>
+                                  {" "}
+                                  <span className="font-bebas text-xl tracking-wide">
+                                    {variant.price}
+                                  </span>
+                                </p>
+                              ))}
+                            </div>
+                          ) : item.price ? (
                             <p
                               className="font-bebas text-2xl tracking-wide"
                               style={{ color: "#144663" }}
                             >
                               {item.price}
                             </p>
-                          )}
-                          {priceOptions && (
-                            <div className="text-right">
-                              {Object.entries(priceOptions).map(([key, value]) => (
-                                <p
-                                  key={key}
-                                  className="whitespace-nowrap"
-                                  style={{ color: "#144663" }}
-                                >
-                                  <span className="font-headline text-sm" style={{ opacity: 0.7 }}>
-                                    {key}
-                                  </span>
-                                  {" "}
-                                  <span className="font-bebas text-xl tracking-wide">
-                                    {value as string}
-                                  </span>
-                                </p>
-                              ))}
-                            </div>
-                          )}
+                          ) : null}
                         </div>
                       </div>
 

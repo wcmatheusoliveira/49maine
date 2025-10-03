@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { checkAuth } from '@/lib/auth-check';
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
@@ -13,6 +14,11 @@ const testimonialSchema = z.object({
 
 // GET all testimonials
 export async function GET() {
+  const authResult = await checkAuth();
+  if (!authResult.authenticated) {
+    return authResult.response;
+  }
+
   try {
     const testimonials = await prisma.testimonial.findMany({
       orderBy: [
@@ -31,6 +37,11 @@ export async function GET() {
 
 // POST create new testimonial
 export async function POST(request: NextRequest) {
+  const authResult = await checkAuth();
+  if (!authResult.authenticated) {
+    return authResult.response;
+  }
+
   try {
     const body = await request.json()
     const validatedData = testimonialSchema.parse(body)
@@ -59,6 +70,11 @@ export async function POST(request: NextRequest) {
 
 // PUT update testimonial
 export async function PUT(request: NextRequest) {
+  const authResult = await checkAuth();
+  if (!authResult.authenticated) {
+    return authResult.response;
+  }
+
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
@@ -95,6 +111,11 @@ export async function PUT(request: NextRequest) {
 
 // DELETE testimonial
 export async function DELETE(request: NextRequest) {
+  const authResult = await checkAuth();
+  if (!authResult.authenticated) {
+    return authResult.response;
+  }
+
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')

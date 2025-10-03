@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { checkAuth } from '@/lib/auth-check';
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
@@ -11,6 +12,11 @@ const categorySchema = z.object({
 
 // GET all menu categories
 export async function GET() {
+  const authResult = await checkAuth();
+  if (!authResult.authenticated) {
+    return authResult.response;
+  }
+
   try {
     const categories = await prisma.menuCategory.findMany({
       orderBy: { order: 'asc' },
@@ -20,7 +26,34 @@ export async function GET() {
         }
       }
     })
-    return NextResponse.json(categories)
+
+    // Convert priceOptions JSON to priceVariants array for admin UI
+    const categoriesWithVariants = categories.map(category => ({
+      ...category,
+      items: category.items.map(item => {
+        let priceVariants = []
+        if (item.priceOptions) {
+          try {
+            priceVariants = JSON.parse(item.priceOptions)
+          } catch (e) {
+            // If parsing fails, use old price field
+            if (item.price) {
+              priceVariants = [{ name: 'Regular', price: item.price }]
+            }
+          }
+        } else if (item.price) {
+          // Legacy items with single price
+          priceVariants = [{ name: 'Regular', price: item.price }]
+        }
+
+        return {
+          ...item,
+          priceVariants: priceVariants.length > 0 ? priceVariants : undefined
+        }
+      })
+    }))
+
+    return NextResponse.json(categoriesWithVariants)
   } catch (error) {
     return NextResponse.json(
       { error: 'Failed to fetch menu categories' },
@@ -31,6 +64,11 @@ export async function GET() {
 
 // POST create new category
 export async function POST(request: NextRequest) {
+  const authResult = await checkAuth();
+  if (!authResult.authenticated) {
+    return authResult.response;
+  }
+
   try {
     const body = await request.json()
     const validatedData = categorySchema.parse(body)
@@ -56,6 +94,11 @@ export async function POST(request: NextRequest) {
 
 // PUT update category
 export async function PUT(request: NextRequest) {
+  const authResult = await checkAuth();
+  if (!authResult.authenticated) {
+    return authResult.response;
+  }
+
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
@@ -92,6 +135,11 @@ export async function PUT(request: NextRequest) {
 
 // DELETE category
 export async function DELETE(request: NextRequest) {
+  const authResult = await checkAuth();
+  if (!authResult.authenticated) {
+    return authResult.response;
+  }
+
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')

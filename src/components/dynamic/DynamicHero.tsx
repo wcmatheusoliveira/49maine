@@ -98,6 +98,7 @@ export default function DynamicHero({ data, businessInfo }: DynamicHeroProps) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.3 }}
                 className="text-5xl sm:text-5xl md:text-6xl lg:text-7xl font-headline font-bold mb-4"
+                style={{ fontWeight: 700 }}
                 dangerouslySetInnerHTML={{ __html: data.headline }}
               />
             )}

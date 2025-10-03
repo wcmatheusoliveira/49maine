@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { checkAuth } from '@/lib/auth-check';
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
@@ -15,6 +16,11 @@ const pageSchema = z.object({
 
 // GET all pages
 export async function GET() {
+  const authResult = await checkAuth();
+  if (!authResult.authenticated) {
+    return authResult.response;
+  }
+
   try {
     const pages = await prisma.page.findMany({
       include: {
@@ -82,6 +88,11 @@ export async function GET_BY_SLUG(request: NextRequest) {
 
 // POST create new page
 export async function POST(request: NextRequest) {
+  const authResult = await checkAuth();
+  if (!authResult.authenticated) {
+    return authResult.response;
+  }
+
   try {
     const body = await request.json()
     const validatedData = pageSchema.parse(body)
@@ -118,6 +129,11 @@ export async function POST(request: NextRequest) {
 
 // PUT update page
 export async function PUT(request: NextRequest) {
+  const authResult = await checkAuth();
+  if (!authResult.authenticated) {
+    return authResult.response;
+  }
+
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
@@ -172,6 +188,11 @@ export async function PUT(request: NextRequest) {
 
 // DELETE page
 export async function DELETE(request: NextRequest) {
+  const authResult = await checkAuth();
+  if (!authResult.authenticated) {
+    return authResult.response;
+  }
+
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')

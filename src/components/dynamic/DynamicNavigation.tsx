@@ -31,7 +31,7 @@ export default function DynamicNavigation({ data, businessInfo }: DynamicNavigat
   const defaultNavItems = [
     { name: "Menu", to: "menu" },
     { name: "Hours & Location", to: "location" },
-    { name: "Reserve", to: "reserve" },
+    { name: "Reserve", to: "location" },
   ];
 
   const navItems = data.navItems || defaultNavItems;

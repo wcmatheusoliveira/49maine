@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { checkAuth } from '@/lib/auth-check';
 import { prisma } from '@/lib/prisma'
+import { logActivity } from '@/lib/activity'
 import { z } from 'zod'
+
+const priceVariantSchema = z.object({
+  name: z.string(),
+  price: z.string(),
+})
 
 const menuItemSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
   price: z.string().optional(),
+  priceVariants: z.array(priceVariantSchema).optional(), // Will be converted to priceOptions
   priceOptions: z.string().optional(), // JSON string
   image: z.string().optional(),
   isPopular: z.boolean().default(false),
@@ -18,6 +26,11 @@ const menuItemSchema = z.object({
 
 // GET all menu items
 export async function GET(request: NextRequest) {
+  const authResult = await checkAuth();
+  if (!authResult.authenticated) {
+    return authResult.response;
+  }
+
   try {
     const { searchParams } = new URL(request.url)
     const categoryId = searchParams.get('categoryId')
@@ -34,7 +47,31 @@ export async function GET(request: NextRequest) {
         category: true
       }
     })
-    return NextResponse.json(items)
+
+    // Convert priceOptions JSON to priceVariants array for admin UI
+    const itemsWithVariants = items.map(item => {
+      let priceVariants = []
+      if (item.priceOptions) {
+        try {
+          priceVariants = JSON.parse(item.priceOptions)
+        } catch (e) {
+          // If parsing fails, use old price field
+          if (item.price) {
+            priceVariants = [{ name: 'Regular', price: item.price }]
+          }
+        }
+      } else if (item.price) {
+        // Legacy items with single price
+        priceVariants = [{ name: 'Regular', price: item.price }]
+      }
+
+      return {
+        ...item,
+        priceVariants: priceVariants.length > 0 ? priceVariants : undefined
+      }
+    })
+
+    return NextResponse.json(itemsWithVariants)
   } catch (error) {
     return NextResponse.json(
       { error: 'Failed to fetch menu items' },
@@ -45,15 +82,38 @@ export async function GET(request: NextRequest) {
 
 // POST create new item
 export async function POST(request: NextRequest) {
+  const authResult = await checkAuth();
+  if (!authResult.authenticated) {
+    return authResult.response;
+  }
+
   try {
     const body = await request.json()
     const validatedData = menuItemSchema.parse(body)
 
+    // Convert priceVariants array to priceOptions JSON string
+    const { priceVariants, ...dataWithoutVariants } = validatedData
+    const dataToSave = {
+      ...dataWithoutVariants,
+      priceOptions: priceVariants ? JSON.stringify(priceVariants) : undefined,
+      // Keep first variant in price field for backward compatibility
+      price: priceVariants && priceVariants.length > 0 ? priceVariants[0].price : undefined
+    }
+
     const item = await prisma.menuItem.create({
-      data: validatedData,
+      data: dataToSave,
       include: {
         category: true
       }
+    })
+
+    // Log activity
+    await logActivity({
+      action: 'created',
+      entityType: 'menu_item',
+      entityId: item.id,
+      entityName: item.name,
+      description: `Added to ${item.category.name}`
     })
 
     return NextResponse.json(item, { status: 201 })
@@ -73,6 +133,11 @@ export async function POST(request: NextRequest) {
 
 // PUT update item
 export async function PUT(request: NextRequest) {
+  const authResult = await checkAuth();
+  if (!authResult.authenticated) {
+    return authResult.response;
+  }
+
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
@@ -87,12 +152,30 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const validatedData = menuItemSchema.parse(body)
 
+    // Convert priceVariants array to priceOptions JSON string
+    const { priceVariants, ...dataWithoutVariants } = validatedData
+    const dataToSave = {
+      ...dataWithoutVariants,
+      priceOptions: priceVariants ? JSON.stringify(priceVariants) : undefined,
+      // Keep first variant in price field for backward compatibility
+      price: priceVariants && priceVariants.length > 0 ? priceVariants[0].price : undefined
+    }
+
     const item = await prisma.menuItem.update({
       where: { id },
-      data: validatedData,
+      data: dataToSave,
       include: {
         category: true
       }
+    })
+
+    // Log activity
+    await logActivity({
+      action: 'updated',
+      entityType: 'menu_item',
+      entityId: item.id,
+      entityName: item.name,
+      description: `Updated in ${item.category.name}`
     })
 
     return NextResponse.json(item)
@@ -112,6 +195,11 @@ export async function PUT(request: NextRequest) {
 
 // DELETE item
 export async function DELETE(request: NextRequest) {
+  const authResult = await checkAuth();
+  if (!authResult.authenticated) {
+    return authResult.response;
+  }
+
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
@@ -123,8 +211,30 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
+    // Get item details before deleting
+    const item = await prisma.menuItem.findUnique({
+      where: { id },
+      include: { category: true }
+    })
+
+    if (!item) {
+      return NextResponse.json(
+        { error: 'Item not found' },
+        { status: 404 }
+      )
+    }
+
     await prisma.menuItem.delete({
       where: { id }
+    })
+
+    // Log activity
+    await logActivity({
+      action: 'deleted',
+      entityType: 'menu_item',
+      entityId: id,
+      entityName: item.name,
+      description: `Removed from ${item.category.name}`
     })
 
     return NextResponse.json({ success: true })

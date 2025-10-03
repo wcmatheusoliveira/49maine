@@ -1,12 +1,12 @@
 {
   "mcpServers": {
-    "playwright": {
+    "shadcn-ui": {
       "command": "npx",
-      "args": ["@playwright/mcp@latest"]
-    },
-    "shadcn": {
-      "command": "npx",
-      "args": ["shadcn@latest", "mcp"]
+      "args": [
+        "@jpisnice/shadcn-ui-mcp-server",
+        "--github-api-key",
+        "ghp_your_token_here"
+      ]
     }
   }
 }

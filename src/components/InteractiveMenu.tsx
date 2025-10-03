@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardBody, Chip, Button, Input, Tabs, Tab } from "@heroui/react";
 import { Search, Filter, Wine, Flame, Leaf, Star, TrendingUp, Clock } from "lucide-react";
-import { menuData } from "@/data/menu";
+import { menuData as fallbackMenuData } from "@/data/menu";
 
 const dietaryTags = {
   vegetarian: { icon: <Leaf className="w-4 h-4" />, color: "success" },
@@ -37,10 +37,31 @@ const menuTags: { [key: string]: string[] } = {
 };
 
 export default function InteractiveMenu() {
+  const [menuData, setMenuData] = useState(fallbackMenuData);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
   const [selectedTab, setSelectedTab] = useState("0");
   const [showPairings, setShowPairings] = useState(false);
+
+  // Fetch menu data from API
+  useEffect(() => {
+    async function fetchMenu() {
+      try {
+        const response = await fetch('/api/menu');
+        if (response.ok) {
+          const data = await response.json();
+          setMenuData(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch menu:', error);
+        // Fallback to hardcoded data already set in state
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchMenu();
+  }, []);
 
   const filteredMenu = useMemo(() => {
     return menuData.map(section => ({
@@ -115,6 +136,19 @@ export default function InteractiveMenu() {
       </Card>
     );
   };
+
+  if (isLoading) {
+    return (
+      <section className="py-20 px-4 bg-white">
+        <div className="max-w-6xl mx-auto text-center">
+          <h2 className="text-4xl md:text-5xl font-bold text-primary mb-4">
+            Explore Our Menu
+          </h2>
+          <p className="text-xl text-primary-600 mb-8">Loading menu...</p>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="py-20 px-4 bg-white">

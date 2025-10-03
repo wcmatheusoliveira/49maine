@@ -10,9 +10,51 @@ import {
   Plus,
   Edit,
   Eye,
-  Calendar,
-  DollarSign
+  ArrowUpRight,
+  Activity,
+  Clock
 } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+
+// Helper function to format time ago
+function timeAgo(date: string) {
+  const now = new Date();
+  const past = new Date(date);
+  const diffMs = now.getTime() - past.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+}
+
+// Helper to get action label
+function getActionLabel(action: string, entityType: string) {
+  const typeLabels: Record<string, string> = {
+    menu_item: 'Menu item',
+    menu_category: 'Menu category',
+    page: 'Page',
+    section: 'Section',
+    testimonial: 'Testimonial',
+    business_info: 'Business info',
+    settings: 'Settings'
+  };
+
+  const actionLabels: Record<string, string> = {
+    created: 'added',
+    updated: 'updated',
+    deleted: 'deleted'
+  };
+
+  return `${typeLabels[entityType] || 'Item'} ${actionLabels[action] || action}`;
+}
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
@@ -25,26 +67,49 @@ export default function AdminDashboard() {
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
 
   useEffect(() => {
-    // TODO: Fetch real stats from API
-    setStats({
-      totalPages: 1,
-      totalMenuItems: 25,
-      totalTestimonials: 4,
-      publishedPages: 1
-    });
+    // Fetch real stats from API
+    fetch('/api/admin/stats')
+      .then(res => res.json())
+      .then(data => {
+        setStats({
+          totalPages: data.totalPages || 1,
+          totalMenuItems: data.totalMenuItems || 0,
+          totalTestimonials: data.totalTestimonials || 0,
+          publishedPages: data.publishedPages || 1
+        });
+      })
+      .catch(() => {
+        // Fallback to defaults if API fails
+        setStats({
+          totalPages: 1,
+          totalMenuItems: 25,
+          totalTestimonials: 4,
+          publishedPages: 1
+        });
+      });
 
-    setRecentActivity([
-      { id: 1, action: "Menu item added", item: "Lobster Roll", time: "2 hours ago", type: "menu" },
-      { id: 2, action: "Page updated", item: "Homepage", time: "5 hours ago", type: "page" },
-      { id: 3, action: "Testimonial added", item: "Sarah Johnson", time: "1 day ago", type: "testimonial" },
-      { id: 4, action: "Business hours updated", item: "Weekend Hours", time: "2 days ago", type: "business" }
-    ]);
+    // Fetch real activity from API
+    fetch('/api/admin/activity')
+      .then(res => res.json())
+      .then(data => {
+        // Ensure data is an array
+        if (Array.isArray(data)) {
+          setRecentActivity(data);
+        } else {
+          console.error('Activity data is not an array:', data);
+          setRecentActivity([]);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch activity:', err);
+        setRecentActivity([]);
+      });
   }, []);
 
   const quickActions = [
-    { label: "Add Menu Item", href: "/admin/menu/new", icon: Plus, color: "bg-green-500" },
-    { label: "Edit Homepage", href: "/admin/pages/home/edit", icon: Edit, color: "bg-blue-500" },
-    { label: "View Site", href: "/", icon: Eye, color: "bg-purple-500", external: true },
+    { label: "Add Menu Item", href: "/admin/menu/new", icon: Plus, variant: "default" as const },
+    { label: "Edit Homepage", href: "/admin/pages/home/edit", icon: Edit, variant: "secondary" as const },
+    { label: "View Site", href: "/", icon: Eye, variant: "outline" as const, external: true },
   ];
 
   const statCards = [
@@ -78,106 +143,155 @@ export default function AdminDashboard() {
     }
   ];
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 18) return "Good afternoon";
+    return "Good evening";
+  };
+
   return (
-    <div>
+    <div className="space-y-8">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
-        <p className="text-gray-600">Welcome back! Here's an overview of your restaurant's content.</p>
+      <div className="flex flex-col gap-1">
+        <h1 className="text-3xl font-bold tracking-tight">{getGreeting()}!</h1>
+        <p className="text-muted-foreground">
+          Here's what's happening with your restaurant today.
+        </p>
       </div>
 
-      {/* Quick Actions */}
-      <div className="mb-8">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {quickActions.map((action) => {
-            const Icon = action.icon;
-            return action.external ? (
-              <a
-                key={action.label}
-                href={action.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-3 p-4 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow"
-              >
-                <div className={`p-2 ${action.color} rounded-lg text-white`}>
-                  <Icon className="w-5 h-5" />
-                </div>
-                <span className="font-medium text-gray-900">{action.label}</span>
-              </a>
-            ) : (
-              <Link
-                key={action.label}
-                href={action.href}
-                className="flex items-center gap-3 p-4 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow"
-              >
-                <div className={`p-2 ${action.color} rounded-lg text-white`}>
-                  <Icon className="w-5 h-5" />
-                </div>
-                <span className="font-medium text-gray-900">{action.label}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </div>
+      <Separator />
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {statCards.map((stat) => {
           const Icon = stat.icon;
           return (
-            <div key={stat.title} className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-              <div className="flex items-center justify-between mb-4">
-                <div className={`p-3 rounded-lg ${stat.color}`}>
-                  <Icon className="w-6 h-6" />
+            <Card key={stat.title} className="hover:shadow-md transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  {stat.title}
+                </CardTitle>
+                <div className={`p-2 rounded-md ${stat.color}`}>
+                  <Icon className="h-4 w-4" />
                 </div>
-                <span className="text-xs text-gray-500">{stat.change}</span>
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-1">{stat.value}</h3>
-              <p className="text-sm text-gray-600">{stat.title}</p>
-            </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stat.value}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {stat.change}
+                </p>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {quickActions.map((action) => {
+          const Icon = action.icon;
+          return (
+            <Card key={action.label} className="hover:shadow-md transition-shadow cursor-pointer group">
+              {action.external ? (
+                <a
+                  href={action.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block"
+                >
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-base font-medium">
+                      {action.label}
+                    </CardTitle>
+                    <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Icon className="h-4 w-4" />
+                      <span>Quick access</span>
+                    </div>
+                  </CardContent>
+                </a>
+              ) : (
+                <Link href={action.href} className="block">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-base font-medium">
+                      {action.label}
+                    </CardTitle>
+                    <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Icon className="h-4 w-4" />
+                      <span>Quick access</span>
+                    </div>
+                  </CardContent>
+                </Link>
+              )}
+            </Card>
           );
         })}
       </div>
 
       {/* Recent Activity */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
-        </div>
-        <div className="p-6">
-          <div className="space-y-4">
-            {recentActivity.map((activity) => (
-              <div key={activity.id} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                <div className="flex items-center gap-4">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <div>
-                    <p className="font-medium text-gray-900">{activity.action}</p>
-                    <p className="text-sm text-gray-600">{activity.item}</p>
-                  </div>
-                </div>
-                <span className="text-sm text-gray-500">{activity.time}</span>
-              </div>
-            ))}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Activity className="h-5 w-5" />
+            <CardTitle>Recent Activity</CardTitle>
           </div>
-        </div>
-      </div>
-
-      {/* Help Card */}
-      <div className="mt-8 bg-gradient-to-r from-[#144663] to-[#1a5a7d] rounded-lg p-6 text-white">
-        <h3 className="text-xl font-bold mb-2">Need Help?</h3>
-        <p className="mb-4 opacity-90">
-          Check out our documentation or contact support for assistance with managing your content.
-        </p>
-        <div className="flex gap-4">
-          <button className="px-4 py-2 bg-white text-[#144663] rounded-lg font-medium hover:bg-gray-100 transition-colors">
-            View Documentation
-          </button>
-          <button className="px-4 py-2 bg-white/20 text-white rounded-lg font-medium hover:bg-white/30 transition-colors">
-            Contact Support
-          </button>
-        </div>
-      </div>
+          <CardDescription>
+            Track all changes and updates to your content
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-0">
+            {recentActivity.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Clock className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                <p className="text-muted-foreground text-sm">No recent activity yet</p>
+                <p className="text-muted-foreground text-xs mt-1">Changes will appear here when you start editing</p>
+              </div>
+            ) : (
+              recentActivity.map((activity, index) => (
+                <div key={activity.id}>
+                  <div className="flex items-start gap-4 py-4">
+                    <Avatar className="h-9 w-9">
+                      <AvatarFallback className={
+                        activity.action === 'created' ? 'bg-green-100 text-green-600' :
+                        activity.action === 'updated' ? 'bg-blue-100 text-blue-600' :
+                        'bg-red-100 text-red-600'
+                      }>
+                        {activity.action === 'created' ? <Plus className="h-4 w-4" /> :
+                         activity.action === 'updated' ? <Edit className="h-4 w-4" /> :
+                         <TrendingUp className="h-4 w-4" />}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <p className="text-sm font-medium leading-none">
+                            {getActionLabel(activity.action, activity.entityType)}
+                          </p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {activity.entityName}
+                            {activity.description && ` • ${activity.description}`}
+                          </p>
+                        </div>
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          {timeAgo(activity.createdAt)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  {index < recentActivity.length - 1 && <Separator />}
+                </div>
+              ))
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

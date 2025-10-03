@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import { hash } from 'bcryptjs'
 import { menuData, specialOffers, testimonials } from '../src/data/menu'
 
 const prisma = new PrismaClient()
@@ -17,6 +18,29 @@ async function main() {
   await prisma.businessInfo.deleteMany()
   await prisma.site.deleteMany()
   await prisma.navigation.deleteMany()
+  await prisma.session.deleteMany()
+  await prisma.account.deleteMany()
+  await prisma.user.deleteMany()
+
+  // Create admin user
+  const adminEmail = 'admin@49maine.com'
+  const adminPassword = 'admin123' // Change this in production!
+
+  const hashedPassword = await hash(adminPassword, 12)
+
+  await prisma.user.create({
+    data: {
+      email: adminEmail,
+      password: hashedPassword,
+      name: '49Maine Admin',
+      role: 'admin',
+    },
+  })
+
+  console.log('✅ Created admin user:')
+  console.log(`   Email: ${adminEmail}`)
+  console.log(`   Password: ${adminPassword}`)
+  console.log('   ⚠️  IMPORTANT: Change this password after first login!')
 
   // Create site configuration
   const site = await prisma.site.create({

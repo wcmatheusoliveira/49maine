@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { checkAuth } from '@/lib/auth-check';
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
@@ -17,6 +18,11 @@ const businessInfoSchema = z.object({
 
 // GET business info
 export async function GET() {
+  const authResult = await checkAuth();
+  if (!authResult.authenticated) {
+    return authResult.response;
+  }
+
   try {
     const businessInfo = await prisma.businessInfo.findFirst()
 
@@ -35,6 +41,11 @@ export async function GET() {
 
 // POST/PUT upsert business info
 export async function POST(request: NextRequest) {
+  const authResult = await checkAuth();
+  if (!authResult.authenticated) {
+    return authResult.response;
+  }
+
   try {
     const body = await request.json()
     const validatedData = businessInfoSchema.parse(body)
